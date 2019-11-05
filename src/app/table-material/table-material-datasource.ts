@@ -10,29 +10,6 @@ export interface TableMaterialItem {
   status:string;
 }
 
-// TODO: replace this with real data from your application
-const EXAMPLE_DATA: TableMaterialItem[] = [
-  {id: 1, name: 'Hydrogen',status:'completed'},
-  {id: 2, name: 'Helium',status:'rejected'},
-  {id: 3, name: 'Lithium',status:'completed'},
-  {id: 4, name: 'Beryllium',status:'completed'},
-  {id: 5, name: 'Boron',status:'completed'},
-  {id: 6, name: 'Carbon',status:'completed'},
-  {id: 7, name: 'Nitrogen',status:'completed'},
-  {id: 8, name: 'Oxygen',status:'completed'},
-  {id: 9, name: 'Fluorine',status:'completed'},
-  {id: 10, name: 'Neon',status:'completed'},
-  {id: 11, name: 'Sodium',status:'completed'},
-  {id: 12, name: 'Magnesium',status:'completed'},
-  {id: 13, name: 'Aluminum',status:'completed'},
-  {id: 14, name: 'Silicon',status:'completed'},
-  {id: 15, name: 'Phosphorus',status:'completed'},
-  {id: 16, name: 'Sulfur',status:'completed'},
-  {id: 17, name: 'Chlorine',status:'completed'},
-  {id: 18, name: 'Argon',status:'completed'},
-  {id: 19, name: 'Potassium',status:'completed'},
-  {id: 20, name: 'Calcium',status:'completed'},
-];
 
 /**
  * Data source for the TableMaterial view. This class should
@@ -40,9 +17,9 @@ const EXAMPLE_DATA: TableMaterialItem[] = [
  * (including sorting, pagination, and filtering).
  */
 export class TableMaterialDataSource extends DataSource<TableMaterialItem> {
-  data: TableMaterialItem[] = EXAMPLE_DATA;
+  // data: TableMaterialItem[] = EXAMPLE_DATA;
 
-  constructor(private paginator: MatPaginator, private sort: MatSort) {
+  constructor(private data: TableMaterialItem[], private paginator: MatPaginator, private sort: MatSort) {
     super();
   }
 
