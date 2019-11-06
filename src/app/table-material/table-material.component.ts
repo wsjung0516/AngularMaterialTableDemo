@@ -1,9 +1,9 @@
 import {Component, OnDestroy, OnInit, ViewChild} from '@angular/core';
 import {MatPaginator, MatSort, PageEvent} from '@angular/material';
 import {TableMaterialDataSource, TableMaterialItem} from './table-material-datasource';
-import {BehaviorSubject, timer} from 'rxjs';
-import {map} from 'rxjs/operators';
-import {animate, keyframes, style, transition, trigger} from '@angular/animations';
+import {BehaviorSubject, fromEvent, interval, of, range, Subject, timer} from 'rxjs';
+import {concatMap, delay, delayWhen, map, mapTo, repeat, repeatWhen, sampleTime, scan, switchMap, takeUntil, tap} from 'rxjs/operators';
+import {animate, keyframes, state, style, transition, trigger} from '@angular/animations';
 import {untilDestroyed} from 'ngx-take-until-destroy';
 
 // TODO: replace this with real data from your application
@@ -56,6 +56,15 @@ export const EXAMPLE_DATA: TableMaterialItem[] = [
   styleUrls: ['./table-material.component.css'],
   animations: [
     trigger( 'state', [
+      transition('void => *',
+        animate( '525ms cubic-bezier(0.4, 0.0, 0.2, 1)', keyframes([
+          style({minHeight: '0px', overflow: 'hidden', height: '0px'}),
+          style( {minHeight: '*', overflow: 'inherit', height: '*'})
+        ])))
+    ])
+  ]
+/*
+    trigger( 'state', [
       transition('void => Processing',
         animate( '525ms cubic-bezier(0.4, 0.0, 0.2, 1)', keyframes([
           style({minHeight: '0px', overflow: 'hidden', height: '0px'}),
@@ -63,25 +72,54 @@ export const EXAMPLE_DATA: TableMaterialItem[] = [
         ])))
     ])
   ]
+*/
 })
 export class TableMaterialComponent implements OnInit, OnDestroy {
   // pageChanges = new BehaviorSubject<PageEvent>({pageIndex: 0, pageSize: 100});
   @ViewChild(MatPaginator) paginator: MatPaginator;
   @ViewChild(MatSort) sort: MatSort;
-  dataSource: TableMaterialDataSource;
+  public dataSource: TableMaterialDataSource;
+  mouseEnter$ = new Subject<any>();
+  mouseLeave$ = new Subject<any>();
 
   /** Columns displayed in the table. Columns IDs can be added, removed, or reordered. */
   displayedColumns = ['id', 'name', 'status'];
 
   ngOnInit() {
+    const nativeElement = document.getElementById('elm');
+
+    const enter = fromEvent(nativeElement, "mouseenter");
+    const leave = fromEvent(nativeElement, "mouseleave");
+
+    this.mouseEnter$.pipe(
+      switchMap(() => interval(200 /* ms */)),
+      takeUntil(this.mouseLeave$),
+      repeat(),
+      mapTo(true));
+  // ).subscribe(event => console.log("hovering", event))
+
     const tdata = [...EXAMPLE_DATA];
-    const timer1 = timer(0, 3000);
-    timer1.pipe(
+    const range1 = timer(0, 2000 );
+
+    range1.pipe(
+      // switchMap(() =>  of( )),
+      sampleTime(3500),
+       tap( val=> console.log('val-->',val)),
        map( val => tdata.slice(30-val, 30+10-val)),
+       takeUntil(this.mouseEnter$),
+      repeatWhen(()=> this.mouseLeave$),
       untilDestroyed(this)
 
     ).subscribe( dat => this.dataSource = new TableMaterialDataSource( dat, this.paginator, this.sort) )
     ;
+  }
+  onMouseEnter() {
+    console.log('maouse enter');
+    this.mouseEnter$.next();
+  }
+  onMouseLeave() {
+    console.log('maouse leave');
+    this.mouseLeave$.next();
   }
   ngOnDestroy(): void {
   }
