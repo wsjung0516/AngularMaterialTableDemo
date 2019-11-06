@@ -1,8 +1,22 @@
 import {Component, OnDestroy, OnInit, ViewChild} from '@angular/core';
 import {MatPaginator, MatSort, PageEvent} from '@angular/material';
 import {TableMaterialDataSource, TableMaterialItem} from './table-material-datasource';
-import {BehaviorSubject, fromEvent, interval, of, range, Subject, timer} from 'rxjs';
-import {concatMap, delay, delayWhen, map, mapTo, repeat, repeatWhen, sampleTime, scan, switchMap, takeUntil, tap} from 'rxjs/operators';
+import {BehaviorSubject, fromEvent, interval, never, Observable, of, range, Subject, timer} from 'rxjs';
+import {
+  concatMap,
+  delay,
+  delayWhen,
+  map,
+  mapTo,
+  repeat,
+  repeatWhen,
+  sampleTime,
+  scan,
+  switchMap,
+  switchMapTo,
+  takeUntil,
+  tap, timeInterval
+} from 'rxjs/operators';
 import {animate, keyframes, state, style, transition, trigger} from '@angular/animations';
 import {untilDestroyed} from 'ngx-take-until-destroy';
 
@@ -85,7 +99,43 @@ export class TableMaterialComponent implements OnInit, OnDestroy {
   /** Columns displayed in the table. Columns IDs can be added, removed, or reordered. */
   displayedColumns = ['id', 'name', 'status'];
 
+  pauser = new Subject();
+  tval: number = 0;
+  kval: number = 0;
   ngOnInit() {
+    /**/
+
+
+    this.pauser.pipe(
+      // switchMap(paused => paused ? never() : this.source()))
+      switchMap(paused => {
+        if(paused) {
+          this.tval = this.kval;
+          return never();
+        } else {
+          this.tval = 0;
+          return this.source()
+        }
+      }))
+      .subscribe(x => {
+        this.kval = x;
+        console.log('xxxxx--tval, kval -->>',  x, this.tval, this.kval )
+      });
+
+    this.pauser.next(false);
+/*
+    setTimeout(() => {
+      console.log('Pause, getting some rest!');
+      this.pauser.next(true);
+
+      setTimeout(() => {
+        console.log('End of pause, get back to work!');
+        this.pauser.next(false);
+      }, 3000);
+    }, 3000);
+*/
+
+    /**/
     const nativeElement = document.getElementById('elm');
 
     const enter = fromEvent(nativeElement, "mouseenter");
@@ -104,22 +154,34 @@ export class TableMaterialComponent implements OnInit, OnDestroy {
     range1.pipe(
       // switchMap(() =>  of( )),
       sampleTime(3500),
-       tap( val=> console.log('val-->',val)),
-       map( val => tdata.slice(30-val, 30+10-val)),
        takeUntil(this.mouseEnter$),
       repeatWhen(()=> this.mouseLeave$),
+       // switchMap(()=> of(interval(2000))),
+       tap( val=> console.log('val-->',val)),
+       map( val => tdata.slice(30-val, 30+10-val)),
       untilDestroyed(this)
 
     ).subscribe( dat => this.dataSource = new TableMaterialDataSource( dat, this.paginator, this.sort) )
     ;
   }
+  source(): Observable<any> {
+    return new Observable(observer => {
+      timer(0, 1000).pipe(
+        // timeInterval(),
+        map((val) => observer.next(  this.tval + val)))
+        .subscribe();
+    });
+  }
+
   onMouseEnter() {
     console.log('maouse enter');
     this.mouseEnter$.next();
+    this.pauser.next(true);
   }
   onMouseLeave() {
     console.log('maouse leave');
     this.mouseLeave$.next();
+    this.pauser.next(false);
   }
   ngOnDestroy(): void {
   }
