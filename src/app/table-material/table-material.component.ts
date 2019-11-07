@@ -1,7 +1,7 @@
 import {Component, OnDestroy, OnInit, ViewChild} from '@angular/core';
 import {MatPaginator, MatSort, PageEvent} from '@angular/material';
 import {TableMaterialDataSource, TableMaterialItem} from './table-material-datasource';
-import {BehaviorSubject, fromEvent, interval, never, Observable, of, range, Subject, timer} from 'rxjs';
+import {BehaviorSubject, fromEvent, interval, merge, never, Observable, of, range, Subject, timer} from 'rxjs';
 import {
   concatMap,
   delay,
@@ -19,6 +19,10 @@ import {
 } from 'rxjs/operators';
 import {animate, keyframes, state, style, transition, trigger} from '@angular/animations';
 import {untilDestroyed} from 'ngx-take-until-destroy';
+import {DataService} from '../services/data.service';
+import {IPhoto} from '../models/issue';
+import {HttpClient} from '@angular/common/http';
+import {DataSource} from '@angular/cdk/collections';
 
 // TODO: replace this with real data from your application
 export const EXAMPLE_DATA: TableMaterialItem[] = [
@@ -77,112 +81,183 @@ export const EXAMPLE_DATA: TableMaterialItem[] = [
         ])))
     ])
   ]
-/*
-    trigger( 'state', [
-      transition('void => Processing',
-        animate( '525ms cubic-bezier(0.4, 0.0, 0.2, 1)', keyframes([
-          style({minHeight: '0px', overflow: 'hidden', height: '0px'}),
-          style( {minHeight: '*', overflow: 'inherit', height: '*'})
-        ])))
-    ])
-  ]
-*/
 })
 export class TableMaterialComponent implements OnInit, OnDestroy {
   // pageChanges = new BehaviorSubject<PageEvent>({pageIndex: 0, pageSize: 100});
   @ViewChild(MatPaginator) paginator: MatPaginator;
   @ViewChild(MatSort) sort: MatSort;
-  public dataSource: TableMaterialDataSource;
+  public dataSource: PhotoDataSource;
   mouseEnter$ = new Subject<any>();
   mouseLeave$ = new Subject<any>();
+  photoData$ = new Subject<IPhoto[]>();
 
   /** Columns displayed in the table. Columns IDs can be added, removed, or reordered. */
-  displayedColumns = ['id', 'name', 'status'];
-
-  pauser = new Subject();
+  displayedColumns = ['albumId', 'id', 'title', 'url', 'thumbnailUrl'];
+  photoDatabase: DataService | null;
+  pauser$ = new Subject();
   tval: number = 0;
   kval: number = 0;
+  constructor( private http: HttpClient,
+               private dataService: DataService) {}
   ngOnInit() {
     /**/
+    this.loadData();
+    // this.tableAnimation();
 
-
-    this.pauser.pipe(
-      // switchMap(paused => paused ? never() : this.source()))
-      switchMap(paused => {
-        if(paused) {
-          this.tval = this.kval;
-          return never();
-        } else {
-          this.tval = 0;
-          return this.source()
-        }
-      }))
-      .subscribe(x => {
-        this.kval = x;
-        console.log('xxxxx--tval, kval -->>',  x, this.tval, this.kval )
-      });
-
-    this.pauser.next(false);
-/*
-    setTimeout(() => {
-      console.log('Pause, getting some rest!');
-      this.pauser.next(true);
-
-      setTimeout(() => {
-        console.log('End of pause, get back to work!');
-        this.pauser.next(false);
-      }, 3000);
-    }, 3000);
-*/
-
-    /**/
-    const nativeElement = document.getElementById('elm');
-
-    const enter = fromEvent(nativeElement, "mouseenter");
-    const leave = fromEvent(nativeElement, "mouseleave");
+    this.pauser$.next(false);
 
     this.mouseEnter$.pipe(
       switchMap(() => interval(200 /* ms */)),
       takeUntil(this.mouseLeave$),
       repeat(),
+      untilDestroyed(this),
       mapTo(true));
-  // ).subscribe(event => console.log("hovering", event))
-
-    const tdata = [...EXAMPLE_DATA];
-    const range1 = timer(0, 2000 );
-
-    range1.pipe(
-      // switchMap(() =>  of( )),
-      sampleTime(3500),
-       takeUntil(this.mouseEnter$),
-      repeatWhen(()=> this.mouseLeave$),
-       // switchMap(()=> of(interval(2000))),
-       tap( val=> console.log('val-->',val)),
-       map( val => tdata.slice(30-val, 30+10-val)),
-      untilDestroyed(this)
-
-    ).subscribe( dat => this.dataSource = new TableMaterialDataSource( dat, this.paginator, this.sort) )
-    ;
   }
-  source(): Observable<any> {
+
+  private tableAnimation(photos: IPhoto[]) {
+    // const tdata = [...EXAMPLE_DATA];
+    let iPhotos : IPhoto[] = [];
+    const tdata = photos;
+    const pageLength = 30;
+    const pageSize = 10;
+
+    this.pauser$.pipe(
+      switchMap(paused => {
+        if (paused) {
+          this.tval = this.kval + 1;
+          return never();
+        } else {
+          return this.source();
+        }
+      }),
+      untilDestroyed(this)
+    )
+      .subscribe(x => {
+        this.kval = x;
+        iPhotos = tdata.slice( pageLength - x, pageLength + pageSize - x);
+        this.photoData$.next(iPhotos);
+        // this.dataSource = new PhotoDataSource(tmpdata, this.paginator, this.sort);
+        // console.log('xxxxx--tval, kval -->>',  x, this.tval, this.kval )
+      });
+  }
+
+  private source(): Observable<any> {
     return new Observable(observer => {
       timer(0, 1000).pipe(
-        // timeInterval(),
         map((val) => observer.next(  this.tval + val)))
         .subscribe();
     });
   }
-
+  public loadData() {
+    this.photoDatabase = new DataService(this.http, 0);
+    this.dataSource = new PhotoDataSource(this.photoDatabase, this.paginator, this.sort);
+  }
   onMouseEnter() {
     console.log('maouse enter');
     this.mouseEnter$.next();
-    this.pauser.next(true);
+    this.pauser$.next(true);
   }
   onMouseLeave() {
     console.log('maouse leave');
     this.mouseLeave$.next();
-    this.pauser.next(false);
+    this.pauser$.next(false);
   }
+
   ngOnDestroy(): void {
   }
+  pageEvent(pageEvent: PageEvent) {
+    console.log('pageEvent --> ',pageEvent); // Look at the props
+    //Call the web service passing params.
+    let take = pageEvent.pageSize;
+    let skip = pageEvent.pageSize * pageEvent.pageIndex;
+    this.photoDatabase = new DataService(this.http, pageEvent.pageIndex + 1);
+    this.paginator.pageIndex = pageEvent.pageIndex;
+    this.dataSource = new PhotoDataSource(this.photoDatabase, this.paginator, this.sort);
+
+  }
+
+}
+export class PhotoDataSource extends DataSource<IPhoto> {
+  _filterChange = new BehaviorSubject('');
+
+  get filter(): string {
+    return this._filterChange.value;
+  }
+
+  set filter(filter: string) {
+    this._filterChange.next(filter);
+  }
+
+  filteredData: IPhoto[] = [];
+  renderedData: IPhoto[] = [];
+
+  constructor(public _photoDatabase: DataService,
+              public _paginator: MatPaginator,
+              public _sort: MatSort) {
+    super();
+    // Reset to the first page when the user changes the filter.
+    // this._filterChange.subscribe(() => this._paginator.pageIndex = 0);
+  }
+
+  /** Connect function called by the table to retrieve one stream containing the data to render. */
+  connect(): Observable<IPhoto[]> {
+    // Listen for any changes in the base data, sorting, filtering, or pagination
+    const displayDataChanges = [
+      this._photoDatabase.dataChange,
+      this._sort.sortChange,
+      this._filterChange,
+      this._paginator.page
+    ];
+
+    this._photoDatabase.getAllPhotos();
+    // console.log('this._exampleDatabase-->', this._exampleDatabase.dataChange.subscribe((value => console.log('value-->', value))))
+
+    return merge(...displayDataChanges).pipe(
+      // tap(val => console.log('tap-->',val)),
+      map( () => {
+          // Filter data
+          this.filteredData = this._photoDatabase.data.slice().filter((photo: IPhoto) => {
+            const searchStr = (photo.albumId + photo.id + photo.title + photo.url ).toLowerCase();
+            return searchStr.indexOf(this.filter.toLowerCase()) !== -1;
+          });
+
+          // Sort filtered data
+          const sortedData = this.sortData(this.filteredData.slice());
+
+          // Grab the page's slice of the filtered sorted data.
+          const startIndex = this._paginator.pageIndex * this._paginator.pageSize;
+          this.renderedData = sortedData.splice(startIndex, this._paginator.pageSize);
+          // return this.renderedData;
+          return this.filteredData;
+        }
+      ));
+  }
+
+  disconnect() {}
+
+
+  /** Returns a sorted copy of the database data. */
+  sortData(data: IPhoto[]): IPhoto[] {
+    if (!this._sort.active || this._sort.direction === '') {
+      return data;
+    }
+
+    return data.sort((a, b) => {
+      let propertyA: number | string = '';
+      let propertyB: number | string = '';
+
+      switch (this._sort.active) {
+        case 'albumId': [propertyA, propertyB] = [a.id, b.id]; break;
+        case 'id': [propertyA, propertyB] = [a.id, b.id]; break;
+        case 'title': [propertyA, propertyB] = [a.title, b.title]; break;
+        case 'url': [propertyA, propertyB] = [a.url, b.url]; break;
+      }
+
+      const valueA = isNaN(+propertyA) ? propertyA : +propertyA;
+      const valueB = isNaN(+propertyB) ? propertyB : +propertyB;
+
+      return (valueA < valueB ? -1 : 1) * (this._sort.direction === 'asc' ? 1 : -1);
+    });
+  }
+
 }
