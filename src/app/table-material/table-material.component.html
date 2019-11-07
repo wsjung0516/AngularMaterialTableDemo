@@ -12,7 +12,7 @@
   </button>
 </mat-toolbar>
 <div class="container mat-elevation-z8">
-  <mat-table #table [dataSource]="dataSource" matSort class="mat-cell" aria-label="Elements">
+  <mat-table #table [dataSource]="tDataSource" matSort class="mat-cell" aria-label="Elements">
     <!-- Id Column -->
     <ng-container matColumnDef="albumId">
       <mat-header-cell *matHeaderCellDef mat-sort-header>AlbumId</mat-header-cell>
@@ -47,10 +47,10 @@
   </mat-table>
 
 <!--    [length]="dataSource.data.length"-->
+<!--    [pageIndex]="0"-->
   <mat-paginator #paginator
     [length]="1000"
-    [pageIndex]="0"
-    [pageSize]="10"
+    [pageSize]="30"
     (page)="pageEvent($event)"
     [pageSizeOptions]="[25, 50, 100, 250]"
     >

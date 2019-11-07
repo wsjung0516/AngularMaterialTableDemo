@@ -13,7 +13,7 @@ import {
   sampleTime,
   scan,
   switchMap,
-  switchMapTo,
+  switchMapTo, take,
   takeUntil,
   tap, timeInterval
 } from 'rxjs/operators';
@@ -87,6 +87,7 @@ export class TableMaterialComponent implements OnInit, OnDestroy {
   @ViewChild(MatPaginator) paginator: MatPaginator;
   @ViewChild(MatSort) sort: MatSort;
   public dataSource: PhotoDataSource;
+  tDataSource: any[] = [];
   mouseEnter$ = new Subject<any>();
   mouseLeave$ = new Subject<any>();
   photoData$ = new Subject<IPhoto[]>();
@@ -151,6 +152,8 @@ export class TableMaterialComponent implements OnInit, OnDestroy {
   public loadData() {
     this.photoDatabase = new DataService(this.http, 0);
     this.dataSource = new PhotoDataSource(this.photoDatabase, this.paginator, this.sort);
+    this.tDataSource = [...this.dataSource.filteredData];
+
   }
   onMouseEnter() {
     console.log('maouse enter');
@@ -166,13 +169,16 @@ export class TableMaterialComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
   }
   pageEvent(pageEvent: PageEvent) {
-    console.log('pageEvent --> ',pageEvent); // Look at the props
+    // console.log('pageEvent --> ',pageEvent); // Look at the props
     //Call the web service passing params.
+    let tdata: PhotoDataSource;
     let take = pageEvent.pageSize;
     let skip = pageEvent.pageSize * pageEvent.pageIndex;
     this.photoDatabase = new DataService(this.http, pageEvent.pageIndex + 1);
     this.paginator.pageIndex = pageEvent.pageIndex;
     this.dataSource = new PhotoDataSource(this.photoDatabase, this.paginator, this.sort);
+    this.tDataSource = [...this.dataSource.filteredData];
+    console.log('thisDataSource-->',this.dataSource, this.tDataSource)
 
   }
 
@@ -205,15 +211,16 @@ export class PhotoDataSource extends DataSource<IPhoto> {
     const displayDataChanges = [
       this._photoDatabase.dataChange,
       this._sort.sortChange,
-      this._filterChange,
-      this._paginator.page
+      // this._filterChange,
+      // this._paginator.page
     ];
 
     this._photoDatabase.getAllPhotos();
     // console.log('this._exampleDatabase-->', this._exampleDatabase.dataChange.subscribe((value => console.log('value-->', value))))
 
     return merge(...displayDataChanges).pipe(
-      // tap(val => console.log('tap-->',val)),
+    // return merge(...displayDataChanges).pipe(
+      // tap(val => console.log('merge-->',val, this._paginator)),
       map( () => {
           // Filter data
           this.filteredData = this._photoDatabase.data.slice().filter((photo: IPhoto) => {
@@ -225,12 +232,15 @@ export class PhotoDataSource extends DataSource<IPhoto> {
           const sortedData = this.sortData(this.filteredData.slice());
 
           // Grab the page's slice of the filtered sorted data.
-          const startIndex = this._paginator.pageIndex * this._paginator.pageSize;
-          this.renderedData = sortedData.splice(startIndex, this._paginator.pageSize);
+          // const startIndex = this._paginator.pageIndex * this._paginator.pageSize;
+          // this.renderedData = sortedData.splice(startIndex, this._paginator.pageSize);
           // return this.renderedData;
-          return this.filteredData;
+          // return this.filteredData;
+           return sortedData;
         }
-      ));
+      ),
+      // tap( val => console.log('val', val)),
+      );
   }
 
   disconnect() {}
