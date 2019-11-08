@@ -5,17 +5,32 @@ import { AppComponent } from './app.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { HomeComponentComponent } from './home-component/home-component.component';
 import { LayoutModule } from '@angular/cdk/layout';
-import { MatToolbarModule, MatButtonModule, MatSidenavModule, MatIconModule, MatListModule, MatGridListModule, MatCardModule, MatMenuModule, MatTableModule, MatPaginatorModule, MatSortModule } from '@angular/material';
+import {
+  MatToolbarModule,
+  MatButtonModule,
+  MatSidenavModule,
+  MatIconModule,
+  MatListModule,
+  MatGridListModule,
+  MatCardModule,
+  MatMenuModule,
+  MatTableModule,
+  MatPaginatorModule,
+  MatSortModule,
+  MatRadioModule
+} from '@angular/material';
 import { MainComponentComponent } from './main-component/main-component.component';
 import { TableMaterialComponent } from './table-material/table-material.component';
 import {HttpClientModule} from '@angular/common/http';
+import {ConfirmDlgComponent} from './confirm-dlg/confirm-dlg.component';
 
 @NgModule({
   declarations: [
     AppComponent,
     HomeComponentComponent,
     MainComponentComponent,
-    TableMaterialComponent
+    TableMaterialComponent,
+    ConfirmDlgComponent
   ],
   imports: [
     BrowserModule,
@@ -32,7 +47,8 @@ import {HttpClientModule} from '@angular/common/http';
     MatMenuModule,
     MatTableModule,
     MatPaginatorModule,
-    MatSortModule
+    MatSortModule,
+    MatRadioModule
   ],
   providers: [],
   bootstrap: [AppComponent]

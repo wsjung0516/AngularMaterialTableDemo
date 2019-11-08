@@ -1,5 +1,5 @@
 import {Component, OnDestroy, OnInit, ViewChild} from '@angular/core';
-import {MatPaginator, MatSort, PageEvent} from '@angular/material';
+import {fadeInContent, fadeInItems, MatPaginator, MatSort, PageEvent} from '@angular/material';
 import {TableMaterialDataSource, TableMaterialItem} from './table-material-datasource';
 import {BehaviorSubject, fromEvent, interval, merge, never, Observable, of, range, Subject, timer} from 'rxjs';
 import {
@@ -17,12 +17,13 @@ import {
   takeUntil,
   tap, timeInterval
 } from 'rxjs/operators';
-import {animate, keyframes, state, style, transition, trigger} from '@angular/animations';
+import {animate, keyframes, sequence, state, style, transition, trigger} from '@angular/animations';
 import {untilDestroyed} from 'ngx-take-until-destroy';
 import {DataService} from '../services/data.service';
 import {IPhoto} from '../models/issue';
 import {HttpClient} from '@angular/common/http';
 import {DataSource} from '@angular/cdk/collections';
+import {tableAnimation} from '../components/tableAnimation';
 
 // TODO: replace this with real data from your application
 export const EXAMPLE_DATA: TableMaterialItem[] = [
@@ -77,7 +78,8 @@ export const EXAMPLE_DATA: TableMaterialItem[] = [
       transition('void => *',
         animate( '525ms cubic-bezier(0.4, 0.0, 0.2, 1)', keyframes([
           style({minHeight: '0px', overflow: 'hidden', height: '0px'}),
-          style( {minHeight: '*', overflow: 'inherit', height: '*'})
+          style( {minHeight: '*', overflow: 'inherit', height: '*'}),
+
         ])))
     ])
   ]
@@ -103,9 +105,10 @@ export class TableMaterialComponent implements OnInit, OnDestroy {
   ngOnInit() {
     /**/
     this.loadData();
-    // this.tableAnimation();
-
-    this.pauser$.next(false);
+    /** To send to DOM, make DataSource data format*/
+    this.photoData$.pipe().subscribe( photos => {
+      this.dataSource = new PhotoDataSource(photos, this.paginator, this.sort);
+    });
 
     this.mouseEnter$.pipe(
       switchMap(() => interval(200 /* ms */)),
@@ -115,10 +118,11 @@ export class TableMaterialComponent implements OnInit, OnDestroy {
       mapTo(true));
   }
 
+  tdata: IPhoto[] = new Array<IPhoto>(10);
+  /**  Animation Module */
   private tableAnimation(photos: IPhoto[]) {
-    // const tdata = [...EXAMPLE_DATA];
     let iPhotos : IPhoto[] = [];
-    const tdata = photos;
+    this.tdata = photos.reverse();
     const pageLength = 30;
     const pageSize = 10;
 
@@ -134,11 +138,17 @@ export class TableMaterialComponent implements OnInit, OnDestroy {
       untilDestroyed(this)
     )
       .subscribe(x => {
+        // console.log('table Animation-->', photos, tdata);
+        if( x >= pageLength ) {
+          this.tval = 0;
+          x = 0;
+        }
         this.kval = x;
-        iPhotos = tdata.slice( pageLength - x, pageLength + pageSize - x);
+        iPhotos = this.tdata.slice( pageLength -  x, pageLength + pageSize - x);
+        /** Finished extracting and rearrange and try to send to DOM*/
         this.photoData$.next(iPhotos);
-        // this.dataSource = new PhotoDataSource(tmpdata, this.paginator, this.sort);
-        // console.log('xxxxx--tval, kval -->>',  x, this.tval, this.kval )
+        //
+        console.log('xxxxx--tval, kval -->>',  x, this.tval, this.kval )
       });
   }
 
@@ -151,8 +161,17 @@ export class TableMaterialComponent implements OnInit, OnDestroy {
   }
   public loadData() {
     this.photoDatabase = new DataService(this.http, 0);
-    this.dataSource = new PhotoDataSource(this.photoDatabase, this.paginator, this.sort);
-    this.tDataSource = [...this.dataSource.filteredData];
+    // this.dataSource = new PhotoDataSource(this.photoDatabase, this.paginator, this.sort);
+    this.photoDatabase.getAllPhotos();
+    this.photoDatabase.dataChange.pipe(
+    ).subscribe((photos) => {
+      this.tableAnimation(photos);
+      this.pauser$.next(false);  /** Just after sending parameter, need to activate switchMap to processing data*/
+
+      // this.dataSource = new PhotoDataSource(photos, this.paginator, this.sort);
+      // console.log('loadData thisDataSource-->',this.dataSource)
+    })
+
 
   }
   onMouseEnter() {
@@ -175,10 +194,14 @@ export class TableMaterialComponent implements OnInit, OnDestroy {
     let take = pageEvent.pageSize;
     let skip = pageEvent.pageSize * pageEvent.pageIndex;
     this.photoDatabase = new DataService(this.http, pageEvent.pageIndex + 1);
-    this.paginator.pageIndex = pageEvent.pageIndex;
-    this.dataSource = new PhotoDataSource(this.photoDatabase, this.paginator, this.sort);
-    this.tDataSource = [...this.dataSource.filteredData];
-    console.log('thisDataSource-->',this.dataSource, this.tDataSource)
+    this.photoDatabase.getAllPhotos();
+    this.photoDatabase.dataChange.subscribe((photos) => {
+      this.tableAnimation(photos);
+      this.paginator.pageIndex = pageEvent.pageIndex;
+      // console.log('thisDataSource-->',photos)
+
+    })
+
 
   }
 
@@ -197,7 +220,8 @@ export class PhotoDataSource extends DataSource<IPhoto> {
   filteredData: IPhoto[] = [];
   renderedData: IPhoto[] = [];
 
-  constructor(public _photoDatabase: DataService,
+  constructor(// public _photoDatabase: DataService,
+              public _photoDatabase: IPhoto[],
               public _paginator: MatPaginator,
               public _sort: MatSort) {
     super();
@@ -209,21 +233,24 @@ export class PhotoDataSource extends DataSource<IPhoto> {
   connect(): Observable<IPhoto[]> {
     // Listen for any changes in the base data, sorting, filtering, or pagination
     const displayDataChanges = [
-      this._photoDatabase.dataChange,
+      of(this._photoDatabase),
+      // this._photoDatabase.dataChange,
       this._sort.sortChange,
       // this._filterChange,
       // this._paginator.page
     ];
 
-    this._photoDatabase.getAllPhotos();
+    // this._photoDatabase.getAllPhotos();
     // console.log('this._exampleDatabase-->', this._exampleDatabase.dataChange.subscribe((value => console.log('value-->', value))))
 
     return merge(...displayDataChanges).pipe(
     // return merge(...displayDataChanges).pipe(
-      // tap(val => console.log('merge-->',val, this._paginator)),
-      map( () => {
+      tap(val => console.log('merge-->',val)),
+      map( (photos) => {
           // Filter data
-          this.filteredData = this._photoDatabase.data.slice().filter((photo: IPhoto) => {
+          this.filteredData = photos.slice().filter((photo: IPhoto) => {
+          // this.filteredData = this._photoDatabase.slice().filter((photo: IPhoto) => {
+          // this.filteredData = this._photoDatabase.data.slice().filter((photo: IPhoto) => {
             const searchStr = (photo.albumId + photo.id + photo.title + photo.url ).toLowerCase();
             return searchStr.indexOf(this.filter.toLowerCase()) !== -1;
           });
