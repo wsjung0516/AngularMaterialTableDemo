@@ -24,6 +24,9 @@ import {IPhoto} from '../models/issue';
 import {HttpClient} from '@angular/common/http';
 import {DataSource} from '@angular/cdk/collections';
 import {tableAnimation} from '../components/tableAnimation';
+import {HelpMessageComponent} from '../components/help-message.component';
+import {HelpMessageService, Message} from '../components/helpMessage';
+
 
 // TODO: replace this with real data from your application
 export const EXAMPLE_DATA: TableMaterialItem[] = [
@@ -100,8 +103,10 @@ export class TableMaterialComponent implements OnInit, OnDestroy {
   pauser$ = new Subject();
   tval: number = 0;
   kval: number = 0;
+  isHelpMessage = true;
   constructor( private http: HttpClient,
-               private dataService: DataService) {}
+               private dataService: DataService,
+               private helpService: HelpMessageService) {}
   ngOnInit() {
     /**/
     this.loadData();
@@ -203,6 +208,18 @@ export class TableMaterialComponent implements OnInit, OnDestroy {
     })
 
 
+  }
+  message: Message = new Message('Hello world');
+
+  openHelpMessage(origin)  {
+    if( this.isHelpMessage) {
+      this.isHelpMessage = false;
+      this.helpService.openHelpMessage(origin, this.message)
+
+    } else {
+      this.helpService.closeHelpMessage();
+      this.isHelpMessage = true;
+    }
   }
 
 }

@@ -17,12 +17,15 @@ import {
   MatTableModule,
   MatPaginatorModule,
   MatSortModule,
-  MatRadioModule
+  MatRadioModule, MatDialogModule
 } from '@angular/material';
 import { MainComponentComponent } from './main-component/main-component.component';
 import { TableMaterialComponent } from './table-material/table-material.component';
 import {HttpClientModule} from '@angular/common/http';
 import {ConfirmDlgComponent} from './confirm-dlg/confirm-dlg.component';
+import { PatientListDlgComponent } from './patient-list-dlg/patient-list-dlg.component';
+import {ConsultListDlgComponent} from './consult-list-dlg/consult-list-dlg.component';
+import {HelpMessageComponent} from './components/help-message.component';
 
 @NgModule({
   declarations: [
@@ -30,7 +33,10 @@ import {ConfirmDlgComponent} from './confirm-dlg/confirm-dlg.component';
     HomeComponentComponent,
     MainComponentComponent,
     TableMaterialComponent,
-    ConfirmDlgComponent
+    ConfirmDlgComponent,
+    PatientListDlgComponent,
+    ConsultListDlgComponent,
+    HelpMessageComponent
   ],
   imports: [
     BrowserModule,
@@ -48,9 +54,11 @@ import {ConfirmDlgComponent} from './confirm-dlg/confirm-dlg.component';
     MatTableModule,
     MatPaginatorModule,
     MatSortModule,
-    MatRadioModule
+    MatRadioModule,
+    MatDialogModule
   ],
   providers: [],
-  bootstrap: [AppComponent]
+  bootstrap: [AppComponent],
+  entryComponents: [PatientListDlgComponent, ConsultListDlgComponent, HelpMessageComponent]
 })
 export class AppModule { }
